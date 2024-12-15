@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Interactive Timeline</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Space Mono", monospace;
+        background-color: #f9f9f9;
+        color: #333;
+      }
+
+      .timeline-container {
+        display: flex;
+        margin-bottom: 20px;
+      }
+
+      .timeline {
+        flex: 1;
+        border-right: 1px solid #ffcc99;
+        padding-right: 20px;
+        width: 40%;
+      }
+
+      .timeline-details {
+        flex: 1;
+        padding-left: 20px;
+        width: 60%;
+      }
+
+      .timeline-event {
+        cursor: pointer;
+        padding: 10px;
+        border-bottom: 1px solid #ffe6cc;
+        background-color: #fff5e6;
+        transition: background-color 0.3s;
+      }
+
+      .timeline-event:hover {
+        background-color: #ffcc99;
+      }
+
+      .event-date {
+        font-size: smaller;
+        color: #ff9900;
+        display: block;
+      }
+
+      .details-content {
+        padding: 10px;
+        background-color: #fff;
+        border: 1px solid #ffcc99;
+        border-radius: 5px;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      .search-bar {
+        margin-bottom: 10px;
+        padding: 5px;
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid #ffcc99;
+        border-radius: 5px;
+      }
+
+      .event-input {
+        width: calc(100% - 10px);
+        padding: 5px;
+        margin-bottom: 5px;
+        box-sizing: border-box;
+        border: 1px solid #ffcc99;
+        border-radius: 5px;
+      }
+
+      .button-container {
+        margin-top: 10px;
+      }
+
+      .add-button,
+      .remove-button,
+      .clear-all-button {
+        padding: 10px;
+        margin-right: 10px;
+        border: none;
+        border-radius: 5px;
+        background-color: #ffcc99;
+        color: #333;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+    </style>
+  </head>
+  <body>
+    <h1 align="center">Your Timeline</h1>
+    <input
+      type="text"
+      id="search-input"
+      class="search-bar"
+      placeholder="Search events..."
+    />
+    <div class="timeline-container">
+      <div class="timeline">
+        <h2>Event Timeline</h2>
+        <!-- Header for the timeline -->
+        <div class="timeline-event">
+          <span class="event-date">2023-10-01</span>
+          Event 1 Description
+        </div>
+        <div class="timeline-event">
+          <span class="event-date">2023-10-02</span>
+          Event 2 Description
+        </div>
+        <!-- Add more events as needed -->
+      </div>
+      <div class="timeline-details">
+        <h2>Details</h2>
+        <div id="details-content" class="details-content">
+          Click an event to view details
+        </div>
+      </div>
+    </div>
+    <div class="button-container">
+      <button id="add-button" class="add-button">Add Event</button>
+      <button id="clear-all-button" class="clear-all-button">Clear All</button>
+    </div>
+    <script>
+      const timeline = document.querySelector(".timeline");
+      const detailsContent = document.getElementById("details-content");
+      const addButton = document.getElementById("add-button");
+      const clearAllButton = document.getElementById("clear-all-button");
+      const searchInput = document.getElementById("search-input");
+      const STORAGE_KEY = "timelineEvents";
+
+      let events = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+
+      function saveEvents() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+      }
+
+      function displayEvents(eventsToDisplay) {
+        eventsToDisplay.sort(
+          (event1, event2) => new Date(event1.date) - new Date(event2.date),
+        );
+
+        timeline.innerHTML = "";
+        eventsToDisplay.forEach((event) => {
+          const eventDiv = document.createElement("div");
+          eventDiv.classList.add("timeline-event");
+          eventDiv.dataset.id = event.id;
+          eventDiv.innerHTML = `${event.title}<span class="event-date">${event.date}</span>`;
+
+          eventDiv.addEventListener("click", () => {
+            detailsContent.innerHTML = `
+                        <h3>${event.title}</h3>
+                        <input type="text" class="event-input" data-field="title" value="${event.title}" placeholder="Title"><br>
+                        <input type="date" class="event-input" data-field="date" value="${event.date}" placeholder="Date"><br>
+                        <textarea class="event-input" data-field="content" placeholder="Content">${event.content}</textarea><br>
+                        <button id="remove-event" class="remove-button" data-id="${event.id}">Remove Event</button>
+                    `;
+
+            const inputFields = detailsContent.querySelectorAll(".event-input");
+            inputFields.forEach((input) => {
+              input.addEventListener("change", (e) => {
+                const field = e.target.dataset.field;
+                event[field] = e.target.value;
+                saveEvents();
+                displayEvents(events);
+              });
+            });
+
+            const removeButton = document.getElementById("remove-event");
+            removeButton.addEventListener("click", () => {
+              const eventIdToRemove = parseInt(removeButton.dataset.id);
+              events = events.filter((e) => e.id !== eventIdToRemove);
+              saveEvents();
+              displayEvents(events);
+              detailsContent.innerHTML = "Click an event to view details"; // Clear details
+            });
+          });
+          timeline.appendChild(eventDiv);
+        });
+      }
+
+      addButton.addEventListener("click", () => {
+        const newEventId =
+          events.length > 0 ? Math.max(...events.map((e) => e.id)) + 1 : 1;
+        const newEvent = {
+          id: newEventId,
+          title: "New Event",
+          date: "Enter date",
+          content: "Enter details here.",
+        };
+        events.push(newEvent);
+        saveEvents();
+        displayEvents(events);
+      });
+
+      clearAllButton.addEventListener("click", () => {
+        events.length = 0;
+        localStorage.removeItem(STORAGE_KEY);
+        displayEvents(events);
+        detailsContent.textContent = "Click an event to view details";
+      });
+
+      searchInput.addEventListener("input", () => {
+        const searchTerm = searchInput.value.toLowerCase();
+        const filteredEvents = events.filter(
+          (event) =>
+            event.title.toLowerCase().includes(searchTerm) ||
+            event.content.toLowerCase().includes(searchTerm),
+        );
+        displayEvents(filteredEvents);
+      });
+
+      displayEvents(events);
+    </script>
+  </body>
+</html>
